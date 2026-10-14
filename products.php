@@ -1,27 +1,71 @@
-<?php session_start(); include("db.php");
-$filter = isset($_GET['type']) ? mysqli_real_escape_string($con,$_GET['type']) : '';
-if($filter){ $products = mysqli_query($con,"SELECT * FROM products WHERE stock > 0 AND murti_type='$filter' ORDER BY id DESC"); }
-else { $products = mysqli_query($con,"SELECT * FROM products WHERE stock > 0 ORDER BY id DESC"); }
-?>
-<html><head><meta name="viewport" content="width=device-width, initial-scale=1">
-<style>body{margin:0;font-family:Arial;background:#f0eeea}.header{background:#6b2c1a;color:#fff;padding:12px 20px;display:flex;justify-content:space-between;flex-wrap:wrap}.header a{color:#fff;text-decoration:none;margin:0 8px;font-weight:bold;font-size:13px}.filter{text-align:center;padding:15px}.filter a{padding:8px 18px;border-radius:20px;text-decoration:none;font-weight:bold;margin:5px;display:inline-block;border:2px solid #6b2c1a}.active{background:#6b2c1a;color:#fff}.inactive{background:#fff;color:#6b2c1a}.grid{display:flex;flex-wrap:wrap;gap:15px;padding:15px;justify-content:center}.card{background:#fff;width:200px;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);text-align:center;padding-bottom:10px;position:relative}.badge{position:absolute;top:8px;left:8px;padding:4px 10px;border-radius:15px;font-size:10px;font-weight:bold;color:#fff}.eco{background:#2e7d32}.pop{background:#ef6c00}.card img{width:100%;height:180px;object-fit:cover}.btn{background:#6b2c1a;color:#fff;padding:7px 12px;border-radius:20px;text-decoration:none;font-size:12px;display:inline-block;margin:3px}</style></head><body>
-<div class="header"><div><b>🙏 Ganpati Shop</b></div><div><a href="products.php">MURTI</a><a href="accessories.php">ACCESSORIES</a><a href="cart.php">CART (<?php echo isset($_SESSION['cart'])?count($_SESSION['cart']):0; ?>)</a><?php if(isset($_SESSION['user_id'])){ ?><a href="my_orders.php">MY ORDERS</a><a href="logout.php">LOGOUT</a><?php } else { ?><a href="login.php">LOGIN</a><?php } ?></div></div>
+<?php
+session_start();
+include("db.php");
+if(!isset($_SESSION['cart'])) $_SESSION['cart']=[];
 
-<div class="filter">
-<a href="products.php" class="<?php echo $filter==''?'active':'inactive'; ?>">All Murti</a>
-<a href="products.php?type=Eco-Friendly" class="<?php echo $filter=='Eco-Friendly'?'active':'inactive'; ?>">🌱 Eco-Friendly</a>
-<a href="products.php?type=POP" class="<?php echo $filter=='POP'?'active':'inactive'; ?>">🎨 POP</a>
+// ADD TO CART
+if(isset($_GET['add'])){
+  $id = intval($_GET['add']);
+  $q = mysqli_query($con, "SELECT * FROM products WHERE id=$id");
+  if(mysqli_num_rows($q)>0){
+    if(isset($_SESSION['cart'][$id])) $_SESSION['cart'][$id]++;
+    else $_SESSION['cart'][$id]=1;
+    header("Location: products.php?added=1");
+    exit;
+  }
+}
+
+// FILTER by murti_type
+$filter = "";
+if(isset($_GET['type']) && $_GET['type']!='all'){
+  $type = mysqli_real_escape_string($con, $_GET['type']);
+  $filter = "WHERE murti_type='$type'";
+}
+$products = mysqli_query($con, "SELECT * FROM products $filter ORDER BY id DESC");
+$cart_count = array_sum($_SESSION['cart']);
+if(!$products){ die("Query Error: ".mysqli_error($con)); }
+?>
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ganpati Shop</title>
+<style>body{margin:0;font-family:Arial;background:#f5f0eb} .nav{background:#5a2a22;color:#fff;padding:12px 20px;display:flex;justify-content:space-between} .nav a{color:#fff;text-decoration:none;margin-left:14px;font-weight:bold} .filters{text-align:center;padding:15px} .filters a{padding:8px 16px;border:1px solid #5a2a22;border-radius:20px;margin:5px;text-decoration:none;color:#5a2a22;display:inline-block} .filters a.active{background:#5a2a22;color:#fff} .grid{display:flex;flex-wrap:wrap;justify-content:center;gap:20px;padding:20px} .card{background:#fff;width:240px;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.1);text-align:center;padding-bottom:12px} .card img{width:100%;height:210px;object-fit:cover} .btn{background:#5a2a22;color:#fff;border:none;padding:8px 16px;border-radius:20px;cursor:pointer;text-decoration:none;display:inline-block;margin-top:8px} .tag{position:absolute;color:#fff;font-size:11px;padding:3px 8px;border-radius:10px;margin:6px;font-weight:bold} .imgbox{position:relative}</style>
+</head><body>
+
+<div class="nav">
+<div>🙏 Ganpati Shop</div>
+<div>
+<a href="products.php?type=all">MURTI</a>
+<a href="products.php">ACCESSORIES</a>
+<a href="cart.php">CART (<?php echo $cart_count; ?>)</a>
+<?php if(isset($_SESSION['user_id'])) echo '<a href="logout.php">Logout</a>'; else echo '<a href="customer_login.php">Login</a>'; ?>
+</div>
 </div>
 
+<div class="filters">
+<a href="products.php?type=all" class="<?php if(!isset($_GET['type']) || $_GET['type']=='all') echo 'active'; ?>">All Murti</a>
+<a href="products.php?type=Eco-Friendly" class="<?php if(isset($_GET['type']) && $_GET['type']=='Eco-Friendly') echo 'active'; ?>">🌱 Eco-Friendly</a>
+<a href="products.php?type=POP" class="<?php if(isset($_GET['type']) && $_GET['type']=='POP') echo 'active'; ?>">POP</a>
+</div>
+
+<?php if(isset($_GET['added'])) echo "<p style='text-align:center;color:green;font-weight:bold'>✅ Added to Cart!</p>"; ?>
+
 <div class="grid">
-<?php while($r=mysqli_fetch_assoc($products)){ $isEco = ($r['murti_type']=='Eco-Friendly'); ?>
+<?php while($row=mysqli_fetch_assoc($products)){ 
+  $img = $row['image'];
+  // fix image path - your images are in uploads/ or root
+  if(!file_exists($img) && file_exists("uploads/".$img)) $img = "uploads/".$img;
+  if(!file_exists($img) && file_exists("images/".$img)) $img = "images/".$img;
+?>
 <div class="card">
-<div class="badge <?php echo $isEco?'eco':'pop'; ?>"><?php echo $r['murti_type']; ?></div>
-<img src="uploads/<?php echo $r['image']; ?>">
-<h4 style="margin:8px 0"><?php echo $r['name']; ?></h4>
-<p>₹<?php echo $r['price']; ?> | Stock: <?php echo $r['stock']; ?></p>
-<a href="add_to_cart.php?type=murti&id=<?php echo $r['id']; ?>" class="btn">Add to Cart</a>
+<div class="imgbox">
+<span class="tag" style="background:<?php echo $row['murti_type']=='POP'?'#ff8c00':'#2e8b57'; ?>"><?php echo $row['murti_type']; ?></span>
+<img src="<?php echo $img; ?>" alt="<?php echo $row['name']; ?>">
+</div>
+<h4 style="margin:8px 0 4px"><?php echo $row['name']; ?></h4>
+<p style="margin:4px;font-size:14px">₹<?php echo $row['price']; ?> | Stock: <?php echo $row['stock']; ?></p>
+<p style="margin:0;font-size:12px;color:#777"><?php echo $row['size']; ?></p>
+<a class="btn" href="products.php?add=<?php echo $row['id']; ?><?php if(isset($_GET['type'])) echo '&type='.$_GET['type']; ?>">Add to Cart</a>
 </div>
 <?php } ?>
 </div>
+
 </body></html>

@@ -1,27 +1,35 @@
-<?php session_start(); include("db.php");
+<?php
+session_start();
+include("db.php");
+$msg="";
+if(isset($_GET['reset'])) $msg = "<span style='color:green'>✅ Password Updated! Login now.</span>";
+if(isset($_GET['registered'])) $msg = "<span style='color:green'>✅ Registered! Please login.</span>";
+
 if(isset($_POST['login'])){
- $email=$_POST['email']; $pass=$_POST['password'];
- $res=mysqli_query($con,"SELECT * FROM users WHERE email='$email' AND password='$pass'");
- if(mysqli_num_rows($res)==1){ $_SESSION['user']=$email; header("Location: home.php"); }
- else{ $error="Wrong Email or Password"; }
+  $email = mysqli_real_escape_string($con, trim($_POST['email']));
+  $pass = trim($_POST['password']);
+  $q = mysqli_query($con, "SELECT * FROM users WHERE email='$email' LIMIT 1");
+  if(mysqli_num_rows($q)==1){
+    $user = mysqli_fetch_assoc($q);
+    if(password_verify($pass, $user['password']) || $pass === $user['password']){
+      $_SESSION['user_id'] = $user['id'];
+      $_SESSION['user_name'] = $user['name'];
+      header("Location: index.php"); exit;
+    } else { $msg = "Wrong Email or Password"; }
+  } else { $msg = "Wrong Email or Password"; }
 }
 ?>
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body{font-family:Arial;background:#f0eeea;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
-.box{background:#fff;padding:30px;border-radius:10px;box-shadow:0 5px 20px rgba(0,0,0,0.1);width:320px}
-h2{color:#6b2c1a;text-align:center} input{width:100%;padding:10px;margin:8px 0;border:1px solid #ccc;border-radius:5px;box-sizing:border-box}
-.btn{width:100%;background:#6b2c1a;color:#fff;padding:10px;border:none;border-radius:5px;font-weight:bold;cursor:pointer}
-</style></head><body>
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Login - Vaishanvi Arts</title>
+<style>body{margin:0;font-family:Arial;background:#f5f0eb;display:flex;justify-content:center;align-items:center;min-height:100vh}.box{background:#fff;width:380px;padding:28px;border-radius:16px;box-shadow:0 8px 25px rgba(0,0,0,.12);text-align:center}input{width:100%;padding:12px;margin:8px 0;border:1px solid #ccc;border-radius:8px;box-sizing:border-box}.btn{width:100%;padding:12px;background:#6b2c1a;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;margin-top:8px}a{color:#6b2c1a;text-decoration:none;font-size:14px}.error{color:#d93025;font-size:13px;margin-bottom:10px}</style>
+</head><body>
 <div class="box">
-<h2>👤 Customer Login</h2>
-<?php if(isset($error)) echo "<p style='color:red;text-align:center'>$error</p>"; ?>
+<h3>👤 Customer Login</h3>
+<?php if($msg) echo "<div class='error'>$msg</div>"; ?>
 <form method="POST">
 <input type="email" name="email" placeholder="Email" required>
 <input type="password" name="password" placeholder="Password" required>
-<button class="btn" name="login">Login</button>
+<button name="login" class="btn">Login</button>
 </form>
-<p style="text-align:center;font-size:13px">No account? <a href="register.php">Register</a></p>
-<p style="text-align:center"><a href="home.php">← Back to Home</a></p>
-</div>
-</body></html>
+<p><a href="forgot_password.php" style="color:#c0392b;font-weight:bold">Forgot Password?</a></p>
+<p>No account? <a href="customer_register.php">Register</a><br><a href="index.php">← Back to Home</a></p>
+</div></body></html>
